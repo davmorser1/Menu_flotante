@@ -160,7 +160,10 @@ img{-webkit-user-drag:none;user-select:none}
   clip-path:inset(0 round 16px);isolation:isolate}
 .hcard img{width:100%;height:100%;object-fit:cover;display:block}
 /* parallax layers (Figma: background = templateHighlightPortraitM / Rectangle 736, title = editorialLogo) */
-.hcard .pbg{position:absolute;inset:0;will-change:transform,filter}
+.hcard .pbg{position:absolute;inset:0;will-change:transform}
+.hcard .pdim{position:absolute;inset:0;background:#000;opacity:0;will-change:opacity;pointer-events:none}
+/* touch: the featured carousel is moved by script (same frame as its parallax layers), the page still pans natively */
+.touch-hero .hero-track{touch-action:pan-y;overflow-x:hidden;scroll-snap-type:none!important}
 .hcard .plogo{position:absolute;object-fit:contain;will-change:transform,opacity;pointer-events:none}
 .hcard .l{display:none}
 [data-orient="landscape"] .hcard{width:768px;height:288px;border-radius:16px}
@@ -580,6 +583,8 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
   const PHONE = location.hash === '#movil' || (location.hash !== '#escritorio' &&
     (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0) && Math.min(window.screen.width, window.screen.height) < 600);
   if (PHONE) document.body.classList.add('phone');
+  const TOUCH_HERO = navigator.maxTouchPoints > 0;
+  if (TOUCH_HERO) document.body.classList.add('touch-hero');
   // adding / removing #movil or #escritorio in the address bar does not reload the page by itself: do it here
   window.addEventListener('hashchange', () => {
     const h = location.hash;
@@ -886,6 +891,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
     easeInOut: x => -(Math.cos(Math.PI * x) - 1) / 2
   };
   let parRaf = 0;
+  cards.forEach(c => { const d = document.createElement('i'); d.className = 'pdim'; c.querySelector('.pbg').appendChild(d); });
   function updateParallax(){
     parRaf = 0;
     const step = slideStep(), sl = heroTrack.scrollLeft, on = S.parOn;
@@ -899,7 +905,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
       // card's outer edge, which is off-screen while the card is moving (cards are ~screen-wide). It also dims with distance.
       const pb = c.querySelector('.pbg');
       pb.style.transform = `translate3d(${bx.toFixed(2)}px,0,0)`;
-      pb.style.filter = on && S.parDim > 0 ? `brightness(${(1 - fb(a) * S.parDim).toFixed(3)})` : '';
+      pb.querySelector('.pdim').style.opacity = on && S.parDim > 0 ? (fb(a) * S.parDim).toFixed(3) : 0;
       c.querySelectorAll('.plogo').forEach(l => {
         l.style.transform = `translate3d(${tx.toFixed(2)}px,0,0)`;
         l.style.opacity = on && S.parFade ? (1 - Math.min(1, a) * 0.85).toFixed(3) : 1;
@@ -992,7 +998,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
     const t0 = performance.now(), B = v0 + w * x0;
     const step = now => {
       const t = now - t0, x = (x0 + B * t) * Math.exp(-w * t);
-      el[prop] = target + x;
+      el[prop] = target + x; if (el === heroTrack) { updateParallax(); updateDots(); }
       if (t > 60 && Math.abs(x) < 0.4) { el[prop] = target; el._anim = null; el.classList.remove('dragging-now'); return; }
       el._anim = requestAnimationFrame(step);
     };
@@ -1029,10 +1035,11 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
   }
   screen.addEventListener('pointerdown', e => {
     if (dragging) endDrag();
-    if (!S.mouseTouch || e.pointerType === 'touch' || e.button !== 0) return;
+    const touchHero = e.pointerType === 'touch' && TOUCH_HERO && e.target.closest('.hero-track');
+    if (e.pointerType === 'touch' ? !touchHero : (!S.mouseTouch || e.button !== 0)) return;
     if (e.target.closest('.tabbar,.cast,.dot')) return;
     stopAnim(scroller); document.querySelectorAll('.row,.hero-track,.chips').forEach(stopAnim);
-    e.preventDefault(); // no text selection / native image drag that would swallow pointerup
+    if (e.pointerType !== 'touch') e.preventDefault(); // no text selection / native image drag that would swallow pointerup
     const row = e.target.closest('.row,.hero-track,.chips');
     dragging = {id:e.pointerId, x:e.clientX, y:e.clientY, row, axis:null, top:scroller.scrollTop, left: row ? row.scrollLeft : 0, moved:false, slide: currentSlide(), samples:[]};
     try { screen.setPointerCapture(e.pointerId); } catch(_) {}
@@ -1044,6 +1051,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
     if (!dragging.axis) {
       if (Math.hypot(dx, dy) < 5) return;
       dragging.axis = (dragging.row && Math.abs(dx) > Math.abs(dy)) ? 'x' : 'y';
+      if (e.pointerType === 'touch' && dragging.axis === 'y') { dragging = null; return; } // vertical finger: the page scrolls natively
       document.body.classList.add('dragging');
       if (dragging.axis === 'x') dragging.row.classList.add('dragging-now');
     }
@@ -1056,6 +1064,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
       r.scrollLeft = want;
       const past = want < 0 ? want : want > max ? want - max : 0;
       setOver(r, S.bounce && past ? -Math.sign(past) * rubber(Math.abs(past), r.clientWidth) * S.bounceAmt : 0);
+      if (r === heroTrack) { updateParallax(); updateDots(); }
     }
     else {
       // vertical: same rubber band at the top and at the end of the home

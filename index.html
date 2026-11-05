@@ -321,7 +321,9 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
   padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
 .phone.panel-open .panel{transform:none}
 .panel-close{display:none}
-.phone .panel-close{display:block;position:sticky;top:0;z-index:2;margin:-8px 0 8px auto}
+.panel-top{display:none}
+.phone .panel-top{display:flex;justify-content:flex-end;gap:8px;position:sticky;top:-20px;z-index:2;margin:-8px 0 8px;padding-top:8px;background:var(--panel)}
+.phone .panel-close{display:block}
 .phone-tip{display:none}
 .phone .phone-tip{display:block;position:fixed;left:50%;top:50px;transform:translateX(-50%);z-index:150;background:rgba(19,20,26,.92);color:var(--text);
   border:1px solid var(--line);border-radius:10px;padding:8px 12px;font:13px/1.3 var(--f-ui);white-space:nowrap;transition:opacity .5s;pointer-events:none}
@@ -416,7 +418,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
 
   <div class="phone-tip" id="phoneTip">Toca la barra de estado para abrir el cuadro de mandos</div>
   <aside class="panel" aria-label="Cuadro de mandos">
-    <button class="btn panel-close" id="panelClose">Cerrar</button>
+    <div class="panel-top"><button class="btn" id="btnFull" hidden>Pantalla completa</button><button class="btn panel-close" id="panelClose">Cerrar</button></div>
     <h1>Cuadro de mandos</h1>
     <p class="sub">Haz scroll de verdad dentro del móvil: en vertical por la home y en horizontal sobre los filtros, el destacado y cada carrusel. Ajusta aquí el comportamiento de cada pieza; los cambios se aplican en vivo.</p>
 
@@ -1266,6 +1268,20 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
     $('#panelClose').onclick = () => document.body.classList.remove('panel-open');
     ['#oP', '#zoom', '#frame'].forEach(s => { const c = $(s).closest('.ctl'); if (c) c.hidden = true; }); // the real phone decides these
     setTimeout(() => $('#phoneTip').classList.add('gone'), 3500);
+    // Android Chrome (and other browsers with the Fullscreen API): hide the browser bars. Not available on iPhone Safari.
+    const de = document.documentElement, canFull = !!(de.requestFullscreen || de.webkitRequestFullscreen);
+    if (canFull) {
+      const fb = $('#btnFull'); fb.hidden = false;
+      const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const label = () => { fb.textContent = isFull() ? 'Salir de pantalla completa' : 'Pantalla completa'; };
+      fb.onclick = () => {
+        if (isFull()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        else { (de.requestFullscreen || de.webkitRequestFullscreen).call(de, {navigationUI: 'hide'}); document.body.classList.remove('panel-open'); }
+      };
+      document.addEventListener('fullscreenchange', () => { label(); setTimeout(layout, 120); });
+      document.addEventListener('webkitfullscreenchange', () => { label(); setTimeout(layout, 120); });
+      $('#phoneTip').textContent = 'Toca la barra de estado: cuadro de mandos y pantalla completa';
+    }
     window.addEventListener('orientationchange', () => setTimeout(layout, 250));
   } else $('#phoneTip').remove();
   if (document.fonts) document.fonts.ready.then(layout);

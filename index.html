@@ -478,17 +478,19 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
     <section class="grp"><h2>Tab bar · vertical y horizontal</h2>
       <div class="ctl"><span class="k">Reducir con scroll</span><label class="switch"><input type="checkbox" id="tabCompact" checked><span></span></label></div>
       <div class="ctl"><label for="tabRestore">Recuperar tamaño</label><select id="tabRestore"><option value="top">Al volver arriba</option><option value="up">Al hacer scroll hacia arriba</option><option value="never">Nunca</option></select></div>
-      <p class="hint">"Empieza en" es el punto del scroll donde arranca la animación. Por distancia: termina tras recorrer esa distancia y va tan rápida o lenta como tu scroll. Por tiempo: al pasar el punto de inicio se reproduce entera con la duración indicada.</p>
+      <p class="hint">"Empieza en" es el punto del scroll donde arranca la animación. Por distancia: termina tras recorrer esa distancia y va tan rápida o lenta como tu scroll, pero nunca más rápida que el "tiempo mínimo" (si haces scroll muy rápido, se anima en ese tiempo; 0 = sin límite). Por tiempo: al pasar el punto de inicio se reproduce entera con la duración indicada.</p>
       <h3 class="subh">Animación en vertical</h3>
       <div class="ctl"><label for="pLink">Tipo</label><select id="pLink"><option value="scroll">Por distancia de scroll</option><option value="time">Por tiempo</option></select></div>
       <div class="ctl"><label for="pThresh">Empieza en</label><div class="rng"><input type="range" id="pThresh" min="0" max="400" step="2"><span class="val" id="vpThresh"></span></div></div>
       <div class="ctl" id="rowpRange"><label for="pRange">Distancia</label><div class="rng"><input type="range" id="pRange" min="10" max="600" step="10"><span class="val" id="vpRange"></span></div></div>
+      <div class="ctl" id="rowpMin"><label for="pMin">Tiempo mínimo</label><div class="rng"><input type="range" id="pMin" min="0" max="1000" step="20"><span class="val" id="vpMin"></span></div></div>
       <div class="ctl" id="rowpDur"><label for="pDur">Duración</label><div class="rng"><input type="range" id="pDur" min="100" max="1600" step="20"><span class="val" id="vpDur"></span></div></div>
       <h3 class="subh">Animación en horizontal (burger)</h3>
       <div class="ctl"><span class="k">Burger</span><label class="switch"><input type="checkbox" id="landBurger" checked><span></span></label></div>
       <div class="ctl"><label for="lLink">Tipo</label><select id="lLink"><option value="scroll">Por distancia de scroll</option><option value="time">Por tiempo</option></select></div>
       <div class="ctl"><label for="lThresh">Empieza en</label><div class="rng"><input type="range" id="lThresh" min="0" max="400" step="2"><span class="val" id="vlThresh"></span></div></div>
       <div class="ctl" id="rowlRange"><label for="lRange">Distancia</label><div class="rng"><input type="range" id="lRange" min="10" max="600" step="10"><span class="val" id="vlRange"></span></div></div>
+      <div class="ctl" id="rowlMin"><label for="lMin">Tiempo mínimo</label><div class="rng"><input type="range" id="lMin" min="0" max="1000" step="20"><span class="val" id="vlMin"></span></div></div>
       <div class="ctl" id="rowlDur"><label for="lDur">Duración</label><div class="rng"><input type="range" id="lDur" min="100" max="1600" step="20"><span class="val" id="vlDur"></span></div></div>
       <div class="ctl"><label for="lTap">Al pulsar el burger</label><div class="rng"><input type="range" id="lTap" min="100" max="1600" step="20"><span class="val" id="vlTap"></span></div></div>
       <p class="hint">El burger se despliega al pulsarlo y se queda abierto hasta que vuelves a subir por encima de su punto de inicio; desde ahí se vuelve a plegar en el siguiente scroll hacia abajo.</p>
@@ -548,7 +550,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
   const cards = [...heroTrack.children];
 
   const DEFAULTS = {orient:'portrait', zoom:'auto', frame:true, mouseTouch:true, debug:false, sbAmt:.55, sbH:84, sbCurve:'sine', sbOnScroll:false, headMode:'scroll', hLink:'time', hDur:320, hRange:80, hCurve:'easeOut', hDelay:24, hAlpha:0.6, hBlur:20, hSat:1.4,
-    tabCompact:true, tabRestore:'top', pLink:'scroll', pThresh:24, pRange:120, pDur:360, lLink:'scroll', lThresh:24, lRange:120, lDur:760, lTap:760, pillColor:'#474763', pillAlpha:.9, pillBlur:20, pillSat:1.2, selAlpha:.4, landBurger:true,
+    tabCompact:true, tabRestore:'top', pLink:'scroll', pThresh:24, pRange:120, pDur:360, pMin:200, lMin:300, lLink:'scroll', lThresh:24, lRange:120, lDur:760, lTap:760, pillColor:'#474763', pillAlpha:.9, pillBlur:20, pillSat:1.2, selAlpha:.4, landBurger:true,
     shAmt:.9, shH:139, shR:213, shCurve:'easeOut', inertia:true, decel:0.998, bounce:true, bounceAmt:1, dotStyle:'worm', dotZoom:1, parOn:true, parBg:-0.3, parDim:0.25, parTitle:0.45, parBgCurve:'linear', parTitleCurve:'easeOut', parFade:true, heroSnap:'piece', rowSnap:false, bars:false};
   /* BAKED = the user's own tuned configuration, written into the file itself so it survives any browser,
      cleared storage or new version. Load order: DEFAULTS ← BAKED ← this browser's saved settings. */
@@ -639,7 +641,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
         lastY = scroller.scrollTop; manualOpen = false; if (miniOn) setMini(false, true);
         // entering landscape: the menu always starts unfolded and folds only if the user keeps scrolling
         rotOpen = o === 'landscape' && lastY > cfg().thresh; rotAnchor = lastY;
-        if (rotOpen) { stopTween(); P = 0; lastTarget = 0; render(); }
+        if (rotOpen) { stopTween(); stopChase(); P = Ptarget = 0; lastTarget = 0; render(); }
         heroTrack.scrollLeft = idx * slideStep(); queueParallax();
         onScroll(); updateDots();
       });
@@ -712,11 +714,28 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
   }
   function paintTab(){ render(); }
   const cfg = () => S.orient === 'landscape'
-    ? {link:S.lLink, thresh:S.lThresh, range:S.lRange, dur:S.lDur}
-    : {link:S.pLink, thresh:S.pThresh, range:S.pRange, dur:S.pDur};
+    ? {link:S.lLink, thresh:S.lThresh, range:S.lRange, dur:S.lDur, min:S.lMin}
+    : {link:S.pLink, thresh:S.pThresh, range:S.pRange, dur:S.pDur, min:S.pMin};
+  /* scroll-linked mode with a speed limit: the menu follows the scroll, but never crosses the whole animation
+     faster than the "minimum time". Slow scroll → it tracks the scroll exactly; fast scroll → it plays at that time. */
+  let Ptarget = 0, chaseRaf = 0, chaseT = 0;
+  function stopChase(){ if (chaseRaf) { cancelAnimationFrame(chaseRaf); chaseRaf = 0; } }
+  function chaseTo(v){
+    Ptarget = v;
+    const md = cfg().min;
+    if (!md) { stopChase(); P = v; render(); return; }
+    if (!chaseRaf) { chaseT = performance.now(); chaseRaf = requestAnimationFrame(chase); }
+  }
+  function chase(now){
+    const dt = Math.min(64, now - chaseT); chaseT = now;
+    const maxStep = dt / Math.max(1, cfg().min), d = Ptarget - P;
+    if (Math.abs(d) <= maxStep) { P = Ptarget; render(); chaseRaf = 0; return; }
+    P += Math.sign(d) * maxStep; render();
+    chaseRaf = requestAnimationFrame(chase);
+  }
   function stopTween(){ if (tweenRaf) { cancelAnimationFrame(tweenRaf); tweenRaf = null; } }
   function tweenTo(to, fullDur = cfg().dur){
-    stopTween();
+    stopTween(); stopChase();
     const from = P;
     const dur = fullDur * Math.abs(to - from);
     if (dur < 1) { P = to; render(); return; }
@@ -732,8 +751,8 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
       // after rotating to landscape: unfolded; scrolling on (down) from where it was folds it with the usual settings
       if (y <= c.thresh || !S.tabCompact) { rotOpen = false; }
       else if (c.link === 'scroll') {
-        stopTween(); P = clamp01((y - rotAnchor) / Math.max(1, c.range)); render();
-        if (P >= 1) rotOpen = false;
+        stopTween(); chaseTo(clamp01((y - rotAnchor) / Math.max(1, c.range)));
+        if (Ptarget >= 1) rotOpen = false;
         if (y < rotAnchor) rotAnchor = y;
         return;
       } else {
@@ -741,14 +760,14 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
         return;
       }
     }
-    if (!S.tabCompact) { stopTween(); P = 0; render(); return; }
+    if (!S.tabCompact) { stopTween(); stopChase(); P = Ptarget = 0; render(); return; }
     if (c.link === 'scroll') {
       stopTween();
+      if (!chaseRaf) Ptarget = P;
       const r = Math.max(1, c.range), lin = clamp01((y - c.thresh) / r);
-      if (S.tabRestore === 'top') P = lin;
-      else if (S.tabRestore === 'never') P = Math.max(P, lin);
-      else P = y <= c.thresh ? 0 : clamp01(P + dy / r);
-      render();
+      if (S.tabRestore === 'top') chaseTo(lin);
+      else if (S.tabRestore === 'never') chaseTo(Math.max(Ptarget, lin));
+      else chaseTo(y <= c.thresh ? 0 : clamp01(Ptarget + dy / r));
     } else {
       let tgt = lastTarget;
       if (S.tabRestore === 'top') tgt = y > c.thresh ? 1 : 0;
@@ -757,7 +776,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
       if (tgt !== lastTarget || (!tweenRaf && P !== tgt)) { lastTarget = tgt; tweenTo(tgt); }
     }
   }
-  $('#burger').addEventListener('click', () => { manualOpen = true; lastTarget = 0; tweenTo(0, S.lTap); });
+  $('#burger').addEventListener('click', () => { stopChase(); manualOpen = true; lastTarget = 0; tweenTo(0, S.lTap); });
   let miniOn = false;
   const mini = $('#mini'), miniChips = $('#miniChips'), realChips = $('#chips');
   miniChips.innerHTML = realChips.innerHTML;
@@ -1213,6 +1232,8 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
       $('#v' + k + 'Dur').textContent = S[k + 'Dur'] + ' ms';
       $('#row' + k + 'Range').hidden = S[k + 'Link'] !== 'scroll';
       $('#row' + k + 'Dur').hidden = S[k + 'Link'] !== 'time';
+      $('#row' + k + 'Min').hidden = S[k + 'Link'] !== 'scroll';
+      $('#v' + k + 'Min').textContent = S[k + 'Min'] ? S[k + 'Min'] + ' ms' : 'off';
     }
     $('#vlTap').textContent = S.lTap + ' ms';
     $('#vParBg').textContent = (S.parBg > 0 ? '+' : '') + Math.round(S.parBg * 100) + ' %';
@@ -1238,7 +1259,7 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
     bind('zoom','zoom'), bind('frame','frame','bool'), bind('mouseTouch','mouseTouch','bool'), bind('debug','debug','bool'),
     bind('sbAmt','sbAmt','num'), bind('sbH','sbH','num'), bind('sbCurve','sbCurve'), bind('sbOnScroll','sbOnScroll','bool'), bind('headMode','headMode'), bind('hLink','hLink'), bind('hDelay','hDelay','num'), bind('hDur','hDur','num'), bind('hRange','hRange','num'), bind('hCurve','hCurve'), bind('hAlpha','hAlpha','num'), bind('hBlur','hBlur','num'), bind('hSat','hSat','num'),
     bind('tabCompact','tabCompact','bool'), bind('tabRestore','tabRestore'),
-    bind('pLink','pLink'), bind('pThresh','pThresh','num'), bind('pRange','pRange','num'), bind('pDur','pDur','num'),
+    bind('pLink','pLink'), bind('pThresh','pThresh','num'), bind('pRange','pRange','num'), bind('pDur','pDur','num'), bind('pMin','pMin','num'), bind('lMin','lMin','num'),
     bind('lLink','lLink'), bind('lThresh','lThresh','num'), bind('lRange','lRange','num'), bind('lDur','lDur','num'), bind('lTap','lTap','num'),
     bind('pillColor','pillColor'), bind('pillAlpha','pillAlpha','num'), bind('pillBlur','pillBlur','num'), bind('pillSat','pillSat','num'), bind('selAlpha','selAlpha','num'),
     bind('landBurger','landBurger','bool'),

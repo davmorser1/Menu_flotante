@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="BBOB Mobile">
 <title>Simulador BBOB Mobile</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1298,19 +1298,37 @@ body.phone{overflow:hidden;overscroll-behavior:none;background:#000}
     $('#panelClose').onclick = () => document.body.classList.remove('panel-open');
     ['#oP', '#zoom', '#frame'].forEach(s => { const c = $(s).closest('.ctl'); if (c) c.hidden = true; }); // the real phone decides these
     setTimeout(() => $('#phoneTip').classList.add('gone'), 3500);
-    // Android Chrome (and other browsers with the Fullscreen API): hide the browser bars. Not available on iPhone Safari.
-    const de = document.documentElement, canFull = !!(de.requestFullscreen || de.webkitRequestFullscreen);
-    if (canFull) {
-      const fb = $('#btnFull'); fb.hidden = false;
+    // Pantalla completa: Android Chrome usa la Fullscreen API. iPhone (Safari) no la tiene para páginas:
+    // ahí el botón explica cómo abrirlo desde la pantalla de inicio, que se ve sin barras.
+    const de = document.documentElement;
+    const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+    const canFull = !!(de.requestFullscreen || de.webkitRequestFullscreen) && (document.fullscreenEnabled !== false || document.webkitFullscreenEnabled === true);
+    const iOS = /iP(hone|od|ad)/.test(navigator.platform) || (/Mac/.test(navigator.platform) && navigator.maxTouchPoints > 1) || /iPhone|iPad/.test(navigator.userAgent);
+    const fb = $('#btnFull'), tip = $('#phoneTip');
+    const say = (t, ms) => { tip.textContent = t; tip.classList.remove('gone'); clearTimeout(say.t); say.t = setTimeout(() => tip.classList.add('gone'), ms || 6000); };
+    if (!standalone) {
+      fb.hidden = false;
       const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
       const label = () => { fb.textContent = isFull() ? 'Salir de pantalla completa' : 'Pantalla completa'; };
       fb.onclick = () => {
-        if (isFull()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-        else { (de.requestFullscreen || de.webkitRequestFullscreen).call(de, {navigationUI: 'hide'}); document.body.classList.remove('panel-open'); }
+        if (canFull && !iOS) {
+          if (isFull()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+          else {
+            const r = (de.requestFullscreen || de.webkitRequestFullscreen).call(de, {navigationUI: 'hide'});
+            if (r && r.catch) r.catch(() => say('Este navegador no deja poner pantalla completa aquí. Abre el enlace directo en Chrome.'));
+            document.body.classList.remove('panel-open');
+          }
+        } else if (iOS) {
+          document.body.classList.remove('panel-open');
+          say('En iPhone: botón Compartir → "Añadir a pantalla de inicio" y ábrelo desde ese icono. Se verá sin barras.', 9000);
+        } else {
+          document.body.classList.remove('panel-open');
+          say('Aquí no se permite pantalla completa (vista previa). Abre el enlace directo en Chrome.', 8000);
+        }
       };
       document.addEventListener('fullscreenchange', () => { label(); setTimeout(layout, 120); });
       document.addEventListener('webkitfullscreenchange', () => { label(); setTimeout(layout, 120); });
-      $('#phoneTip').textContent = 'Toca la barra de estado: cuadro de mandos y pantalla completa';
+      tip.textContent = 'Toca la barra de estado: cuadro de mandos y pantalla completa';
     }
     window.addEventListener('orientationchange', () => setTimeout(layout, 250));
   } else $('#phoneTip').remove();
